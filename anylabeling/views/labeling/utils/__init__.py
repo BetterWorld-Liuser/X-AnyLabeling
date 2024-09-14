@@ -15,6 +15,7 @@ from .image import (
     img_data_to_pil,
     img_data_to_png_data,
     img_pil_to_data,
+    process_image_exif,
 )
 from .qt import (
     Struct,
@@ -34,6 +35,4 @@ from .shape import (
     shapes_to_label,
     rectangle_from_diagonal,
 )
-from .video import (
-    extract_frames_from_video
-)
+from .video import extract_frames_from_video

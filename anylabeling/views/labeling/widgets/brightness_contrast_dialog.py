@@ -4,7 +4,8 @@ import PIL.Image
 import PIL.ImageEnhance
 from PyQt5 import QtWidgets
 from PyQt5.QtCore import Qt
-from PyQt5.QtGui import QImage
+
+from ..utils.image import pil_to_qimage
 
 
 class BrightnessContrastDialog(QtWidgets.QDialog):
@@ -15,26 +16,28 @@ class BrightnessContrastDialog(QtWidgets.QDialog):
         self.setModal(True)
         self.setWindowTitle(self.tr("Brightness/Contrast"))
 
-        self.img = img
-        self.original_img = img.copy()
-        self.callback = callback
-
         # Brightness slider and label
         self.slider_brightness = self._create_slider()
-        self.brightness_label = QtWidgets.QLabel(f"{self.slider_brightness.value() / 50:.2f}")
-        self.slider_brightness.valueChanged.connect(self.update_brightness_label)
+        self.brightness_label = QtWidgets.QLabel(
+            f"{self.slider_brightness.value() / 50:.2f}"
+        )
+        self.slider_brightness.valueChanged.connect(
+            self.update_brightness_label
+        )
 
         brightness_layout = QtWidgets.QHBoxLayout()
         brightness_layout.addWidget(QtWidgets.QLabel(self.tr("Brightness: ")))
         brightness_layout.addWidget(self.slider_brightness)
         brightness_layout.addWidget(self.brightness_label)
-        
+
         brightness_widget = QtWidgets.QWidget()
         brightness_widget.setLayout(brightness_layout)
 
         # Contrast slider and label
         self.slider_contrast = self._create_slider()
-        self.contrast_label = QtWidgets.QLabel(f"{self.slider_contrast.value() / 50:.2f}")
+        self.contrast_label = QtWidgets.QLabel(
+            f"{self.slider_contrast.value() / 50:.2f}"
+        )
         self.slider_contrast.valueChanged.connect(self.update_contrast_label)
 
         contrast_layout = QtWidgets.QHBoxLayout()
@@ -66,6 +69,8 @@ class BrightnessContrastDialog(QtWidgets.QDialog):
         self.setLayout(main_layout)
 
         assert isinstance(img, PIL.Image.Image)
+        self.img = img
+        self.callback = callback
 
     def update_brightness_label(self, value):
         """Update brightness label"""
@@ -88,15 +93,13 @@ class BrightnessContrastDialog(QtWidgets.QDialog):
         if contrast != 1:
             img = PIL.ImageEnhance.Contrast(img).enhance(contrast)
 
-        img = img.convert("RGB")
-        qimage = QImage(img.tobytes(), img.width, img.height, QImage.Format_RGB888)
+        qimage = pil_to_qimage(img)
         self.callback(qimage)
 
     def reset_values(self):
         """Reset sliders to default values"""
         self.slider_brightness.setValue(50)
         self.slider_contrast.setValue(50)
-        self.img = self.original_img.copy()
         self.on_new_value()
 
     def confirm_values(self):

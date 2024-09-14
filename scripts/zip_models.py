@@ -31,6 +31,7 @@ for model in model_list:
     )
     if model_config["type"] in [
         "segment_anything",
+        "segment_anything_2",
         "sam_med2d",
         "sam_hq",
         "efficientvit_sam",
@@ -42,6 +43,7 @@ for model in model_list:
         "yolov5_sam",
         "yolov8_efficientvit_sam",
         "grounding_sam",
+        "grounding_sam2",
     ]:
         download_links.append(model_config["encoder_model_path"])
         download_links.append(model_config["decoder_model_path"])
@@ -72,6 +74,7 @@ for model in model_list:
     # Rewrite model's urls
     if model_config["type"] in [
         "segment_anything",
+        "segment_anything_2",
         "sam_med2d",
         "sam_hq",
         "efficientvit_sam",
@@ -87,6 +90,7 @@ for model in model_list:
         "yolov5_sam",
         "yolov8_efficientvit_sam",
         "grounding_sam",
+        "grounding_sam2",
     ]:
         model_config["encoder_model_path"] = get_filename_from_url(
             model_config["encoder_model_path"]

@@ -29,9 +29,9 @@ class YOLOX(Model):
         ]
         widgets = [
             "button_run",
-            "input_conf", 
+            "input_conf",
             "edit_conf",
-            "input_iou", 
+            "input_iou",
             "edit_iou",
             "toggle_preserve_existing_annotations",
         ]
@@ -61,15 +61,17 @@ class YOLOX(Model):
         self.replace = True
 
     def set_auto_labeling_conf(self, value):
-        """ set auto labeling confidence threshold """
-        self.conf_thres = value
+        """set auto labeling confidence threshold"""
+        if value > 0:
+            self.conf_thres = value
 
     def set_auto_labeling_iou(self, value):
-        """ set auto labeling iou threshold """
-        self.nms_thres = value
+        """set auto labeling iou threshold"""
+        if value > 0:
+            self.nms_thres = value
 
     def set_auto_labeling_preserve_existing_annotations_state(self, state):
-        """ Toggle the preservation of existing annotations based on the checkbox state. """
+        """Toggle the preservation of existing annotations based on the checkbox state."""
         self.replace = not state
 
     def preprocess(self, input_image):
@@ -169,7 +171,9 @@ class YOLOX(Model):
             x1, y1, x2, y2 = box
             score = float(score)
             label = str(self.classes[int(cls_inds)])
-            rectangle_shape = Shape(label=label, score=score, shape_type="rectangle")
+            rectangle_shape = Shape(
+                label=label, score=score, shape_type="rectangle"
+            )
             rectangle_shape.add_point(QtCore.QPointF(x1, y1))
             rectangle_shape.add_point(QtCore.QPointF(x2, y1))
             rectangle_shape.add_point(QtCore.QPointF(x2, y2))

@@ -16,6 +16,7 @@ class AutoLabelingWidget(QWidget):
     auto_labeling_mode_changed = pyqtSignal(AutoLabelingMode)
     clear_auto_labeling_action_requested = pyqtSignal()
     finish_auto_labeling_object_action_requested = pyqtSignal()
+    cache_auto_label_changed = pyqtSignal()
 
     def __init__(self, parent):
         super().__init__()
@@ -73,12 +74,18 @@ class AutoLabelingWidget(QWidget):
             lambda: set_enable_tools(True)
         )
 
+        # Init value
+        self.initial_conf_value = 0
+        self.initial_iou_value = 0
+        self.initial_preserve_annotations_state = False
+
         # Auto labeling buttons
         self.button_run.setShortcut("I")
         self.button_run.clicked.connect(self.run_prediction)
         self.button_send.clicked.connect(self.run_vl_prediction)
         self.edit_conf.valueChanged.connect(self.on_conf_value_changed)
         self.edit_iou.valueChanged.connect(self.on_iou_value_changed)
+        self.button_reset_tracker.clicked.connect(self.on_reset_tracker)
         self.button_add_point.setShortcut("Q")
         self.button_add_point.clicked.connect(
             lambda: self.set_auto_labeling_mode(
@@ -100,8 +107,12 @@ class AutoLabelingWidget(QWidget):
             self.clear_auto_labeling_action_requested
         )
         self.button_clear.setShortcut("B")
+        self.button_finish_object.clicked.connect(self.add_new_prompt)
         self.button_finish_object.clicked.connect(
             self.finish_auto_labeling_object_action_requested
+        )
+        self.button_finish_object.clicked.connect(
+            self.cache_auto_label_changed
         )
         self.button_finish_object.setShortcut("F")
         self.toggle_preserve_existing_annotations.stateChanged.connect(
@@ -199,7 +210,9 @@ class AutoLabelingWidget(QWidget):
         """Run visual-language prediction"""
         if self.parent.filename is not None and self.edit_text:
             self.model_manager.predict_shapes_threading(
-                self.parent.image, self.parent.filename, self.edit_text.text()
+                self.parent.image,
+                self.parent.filename,
+                text_prompt=self.edit_text.text(),
             )
 
     def unload_and_hide(self):
@@ -224,6 +237,14 @@ class AutoLabelingWidget(QWidget):
             self.on_model_select_combobox_changed
         )
         self.model_select_combobox.setEnabled(True)
+
+        # Reset controls to initial values when the model changes
+        self.on_conf_value_changed(self.initial_conf_value)
+        self.on_iou_value_changed(self.initial_iou_value)
+        self.on_preserve_existing_annotations_state_changed(
+            self.initial_preserve_annotations_state
+        )
+        self.on_reset_tracker()
 
     def on_output_modes_changed(self, output_modes, default_output_mode):
         """Handle output modes changed"""
@@ -304,6 +325,7 @@ class AutoLabelingWidget(QWidget):
             "output_label",
             "output_select_combobox",
             "toggle_preserve_existing_annotations",
+            "button_reset_tracker",
         ]
         for widget in widgets:
             getattr(self, widget).hide()
@@ -320,10 +342,24 @@ class AutoLabelingWidget(QWidget):
         return True
 
     def on_conf_value_changed(self, value):
+        self.initial_conf_value = value
         self.model_manager.set_auto_labeling_conf(value)
 
     def on_iou_value_changed(self, value):
+        self.initial_iou_value = value
         self.model_manager.set_auto_labeling_iou(value)
 
     def on_preserve_existing_annotations_state_changed(self, state):
-        self.model_manager.set_auto_labeling_preserve_existing_annotations_state(state)
+        self.initial_preserve_annotations_state = state
+        self.model_manager.set_auto_labeling_preserve_existing_annotations_state(
+            state
+        )
+
+    def on_reset_tracker(self):
+        self.model_manager.set_auto_labeling_reset_tracker()
+
+    def on_cache_auto_label_changed(self, text, gid):
+        self.model_manager.set_cache_auto_label(text, gid)
+
+    def add_new_prompt(self):
+        self.model_manager.set_auto_labeling_prompt()

@@ -45,7 +45,7 @@ def get_install_requires():
     install_requires = [
         "imgviz>=0.11",
         "natsort>=7.1.0",
-        "numpy",
+        "numpy<=1.26.4",
         "Pillow>=2.8",
         "PyYAML",
         "termcolor",
@@ -61,6 +61,7 @@ def get_install_requires():
         "pyclipper",
         "filterpy",
         "tokenizers",
+        "jsonlines",
     ]
 
     # Add onnxruntime-gpu if GPU is preferred
@@ -69,10 +70,10 @@ def get_install_requires():
     preferred_device = get_preferred_device()
     if preferred_device == "GPU" and platform.system() != "Darwin":
         install_requires.append("onnxruntime-gpu==1.16.0")
-        print("Building AnyLabeling with GPU support")
+        print("Building X-AnyLabeling with GPU support")
     else:
         install_requires.append("onnxruntime==1.16.0")
-        print("Building AnyLabeling without GPU support")
+        print("Building X-AnyLabeling without GPU support")
 
     return install_requires
 
@@ -93,6 +94,7 @@ setup(
     long_description_content_type="text/markdown",
     author="CVHub",
     author_email="cvhub.cn@gmail.com",
+    python_requires=">=3.8.0",
     url="https://github.com/CVHub520/X-AnyLabeling",
     install_requires=get_install_requires(),
     license="GPLv3",
@@ -103,9 +105,6 @@ setup(
         "Natural Language :: English",
         "Operating System :: OS Independent",
         "Programming Language :: Python",
-        "Programming Language :: Python :: 3.8",
-        "Programming Language :: Python :: 3.9",
-        "Programming Language :: Python :: 3.10",
         "Programming Language :: Python :: 3 :: Only",
     ],
     include_package_data=True,

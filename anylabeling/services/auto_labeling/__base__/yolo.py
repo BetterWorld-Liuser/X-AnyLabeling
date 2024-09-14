@@ -4,6 +4,7 @@ import os
 import cv2
 import math
 import numpy as np
+from argparse import Namespace
 from PyQt5 import QtCore
 from PyQt5.QtCore import QCoreApplication
 
@@ -13,13 +14,14 @@ from anylabeling.views.labeling.utils.opencv import qt_img_to_rgb_cv_img
 from ..model import Model
 from ..engines import OnnxBaseModel
 from ..types import AutoLabelingResult
-from ..trackers import ByteTrack, OcSort
+from ..trackers import BOTSORT, BYTETracker
 from ..utils import (
     letterbox,
     scale_boxes,
     scale_coords,
     point_in_bbox,
     masks2segments,
+    xyxy2xywh,
     xywhr2xyxyxyxy,
     non_max_suppression_v5,
     non_max_suppression_v8,
@@ -36,11 +38,12 @@ class YOLO(Model):
         ]
         widgets = [
             "button_run",
-            "input_conf", 
+            "input_conf",
             "edit_conf",
-            "input_iou", 
+            "input_iou",
             "edit_iou",
             "toggle_preserve_existing_annotations",
+            "button_reset_tracker",
         ]
         output_modes = {
             "point": QCoreApplication.translate("Model", "Point"),
@@ -115,11 +118,19 @@ class YOLO(Model):
             ]
 
         """Tracker"""
-        tracker = self.config.get("tracker", None)
-        if tracker == "ocsort":
-            self.tracker = OcSort(self.input_shape)
-        elif tracker == "bytetrack":
-            self.tracker = ByteTrack(self.input_shape)
+        tracker = self.config.get("tracker", {})
+        if tracker:
+            tracker_args = Namespace(**tracker)
+            if tracker_args.tracker_type == "bytetrack":
+                self.tracker = BYTETracker(tracker_args, frame_rate=30)
+            elif tracker_args.tracker_type == "botsort":
+                self.tracker = BOTSORT(tracker_args, frame_rate=30)
+            else:
+                self.tracker = None
+                print(
+                    "Only 'bytetrack' and 'botsort' are supported for now, "
+                    f"but got '{tracker_args.tracker_type}'!"
+                )
         else:
             self.tracker = None
 
@@ -132,22 +143,26 @@ class YOLO(Model):
             "yolov10",
             "gold_yolo",
             "yolow",
+            "yolow_ram",
+            "yolov5_det_track",
+            "yolov8_det_track",
         ]:
             self.task = "det"
-        elif self.model_type in ["yolov5_seg", "yolov8_seg"]:
+        elif self.model_type in [
+            "yolov5_seg",
+            "yolov8_seg",
+            "yolov8_seg_track",
+        ]:
             self.task = "seg"
         elif self.model_type in [
-            "yolov5_track",
-            "yolov8_track",
-        ]:
-            self.task = "track"
-        elif self.model_type in [
             "yolov8_obb",
+            "yolov8_obb_track",
         ]:
             self.task = "obb"
         elif self.model_type in [
             "yolov6_face",
             "yolov8_pose",
+            "yolov8_pose_track",
         ]:
             self.task = "pose"
             self.keypoint_name = {}
@@ -160,7 +175,9 @@ class YOLO(Model):
             self.classes = list(self.classes.keys())
             self.kpt_shape = eval(self.net.get_metadata_info("kpt_shape"))
             if self.kpt_shape is None:
-                max_kpts = max(len(num_kpts) for num_kpts in self.keypoint_name.values())
+                max_kpts = max(
+                    len(num_kpts) for num_kpts in self.keypoint_name.values()
+                )
                 visible_flag = 3 if self.has_visible else 2
                 self.kpt_shape = [max_kpts, visible_flag]
 
@@ -168,16 +185,23 @@ class YOLO(Model):
             self.classes = list(self.classes.values())
 
     def set_auto_labeling_conf(self, value):
-        """ set auto labeling confidence threshold """
-        self.conf_thres = value
+        """set auto labeling confidence threshold"""
+        if value > 0:
+            self.conf_thres = value
 
     def set_auto_labeling_iou(self, value):
-        """ set auto labeling iou threshold """
-        self.iou_thres = value
+        """set auto labeling iou threshold"""
+        if value > 0:
+            self.iou_thres = value
 
     def set_auto_labeling_preserve_existing_annotations_state(self, state):
-        """ Toggle the preservation of existing annotations based on the checkbox state. """
+        """Toggle the preservation of existing annotations based on the checkbox state."""
         self.replace = not state
+
+    def set_auto_labeling_reset_tracker(self):
+        """Resets the tracker to its initial state, clearing all tracked objects and internal states."""
+        if self.tracker is not None:
+            self.tracker.reset()
 
     def inference(self, blob):
         if self.engine == "dnn" and self.task in ["det", "seg", "track"]:
@@ -222,7 +246,7 @@ class YOLO(Model):
             "yolov5_ram",
             "yolov5_sam",
             "yolov5_seg",
-            "yolov5_track",
+            "yolov5_det_track",
             "yolov6",
             "yolov7",
             "gold_yolo",
@@ -244,11 +268,15 @@ class YOLO(Model):
             "yolov8",
             "yolov8_efficientvit_sam",
             "yolov8_seg",
-            "yolov8_track",
             "yolov8_obb",
             "yolov9",
             "yolow",
             "yolov8_pose",
+            "yolow_ram",
+            "yolov8_det_track",
+            "yolov8_seg_track",
+            "yolov8_obb_track",
+            "yolov8_pose_track",
         ]:
             p = non_max_suppression_v8(
                 preds[0],
@@ -264,7 +292,7 @@ class YOLO(Model):
             p = self.postprocess_v10(
                 preds[0][0],
                 conf_thres=self.conf_thres,
-                classes=self.filter_classes
+                classes=self.filter_classes,
             )
         masks, keypoints = None, None
         img_shape = (self.img_height, self.img_width)
@@ -301,11 +329,15 @@ class YOLO(Model):
         elif self.task == "pose":
             pred_kpts = pred[:, 6:]
             if pred.shape[0] != 0:
-                pred_kpts = pred_kpts.reshape(pred_kpts.shape[0], *self.kpt_shape)
+                pred_kpts = pred_kpts.reshape(
+                    pred_kpts.shape[0], *self.kpt_shape
+                )
             bbox = pred[:, :4]
             conf = pred[:, 4:5]
             clas = pred[:, 5:6]
-            keypoints = scale_coords(self.input_shape, pred_kpts, self.image_shape)
+            keypoints = scale_coords(
+                self.input_shape, pred_kpts, self.image_shape
+            )
         else:
             bbox = pred[:, :4]
             conf = pred[:, 4:5]
@@ -331,9 +363,6 @@ class YOLO(Model):
         outputs = self.inference(blob)
         boxes, class_ids, scores, masks, keypoints = self.postprocess(outputs)
 
-        if keypoints is None:
-            keypoints = [[] for _ in range(len(boxes))]
-
         points = [[] for _ in range(len(boxes))]
         if self.task == "seg" and masks is not None:
             points = [
@@ -341,20 +370,37 @@ class YOLO(Model):
                 for x in masks2segments(masks, self.epsilon_factor)
             ]
         track_ids = [[] for _ in range(len(boxes))]
-        if self.task == "track":
-            image_shape = image.shape[:2][::-1]
-            results = np.concatenate((boxes, scores, class_ids), axis=1)
-            boxes, track_ids, scores, class_ids = self.tracker.track(
-                results, image_shape
-            )
+        if self.tracker is not None and (len(boxes) > 0):
+            if self.task == "obb":
+                tracks = self.tracker.update(
+                    scores.flatten(), boxes, class_ids.flatten(), image
+                )
+            else:
+                tracks = self.tracker.update(
+                    scores.flatten(),
+                    xyxy2xywh(boxes),
+                    class_ids.flatten(),
+                    image,
+                )
+            if len(tracks) > 0:
+                boxes = tracks[:, :5] if self.task == "obb" else tracks[:, :4]
+                track_ids = (
+                    tracks[:, 5:6] if self.task == "obb" else tracks[:, 4:5]
+                )
+                scores = (
+                    tracks[:, 6:7] if self.task == "obb" else tracks[:, 5:6]
+                )
+                class_ids = (
+                    tracks[:, 7:8] if self.task == "obb" else tracks[:, 6:7]
+                )
+        if keypoints is None:
+            keypoints = [[] for _ in range(len(boxes))]
 
         shapes = []
         for i, (box, class_id, score, point, keypoint, track_id) in enumerate(
             zip(boxes, class_ids, scores, points, keypoints, track_ids)
-            ):
-            if (
-                self.show_boxes and self.task != "track"
-            ) or self.task == "det":
+        ):
+            if self.task == "det" or self.show_boxes:
                 x1, y1, x2, y2 = box.astype(float)
                 shape = Shape(flags={})
                 shape.add_point(QtCore.QPointF(x1, y1))
@@ -363,14 +409,13 @@ class YOLO(Model):
                 shape.add_point(QtCore.QPointF(x1, y2))
                 shape.shape_type = "rectangle"
                 shape.closed = True
-                shape.fill_color = "#000000"
-                shape.line_color = "#000000"
-                shape.line_width = 1
                 shape.label = str(self.classes[int(class_id)])
                 shape.score = float(score)
                 shape.selected = False
                 if self.task == "pose":
                     shape.group_id = int(i)
+                if self.tracker and track_id:
+                    shape.group_id = int(track_id)
                 shapes.append(shape)
             if self.task == "seg":
                 if len(point) < 3:
@@ -380,54 +425,40 @@ class YOLO(Model):
                     shape.add_point(QtCore.QPointF(int(p[0]), int(p[1])))
                 shape.shape_type = "polygon"
                 shape.closed = True
-                shape.fill_color = "#000000"
-                shape.line_color = "#000000"
-                shape.line_width = 1
                 shape.label = str(self.classes[int(class_id)])
                 shape.score = float(score)
                 shape.selected = False
+                if self.tracker and track_id:
+                    shape.group_id = int(track_id)
                 shapes.append(shape)
             if self.task == "pose":
                 label = str(self.classes[int(class_id)])
                 keypoint_name = self.keypoint_name[label]
                 for j, kpt in enumerate(keypoint):
                     if len(kpt) == 2:
-                        x, y, s = *kpt, False
+                        x, y, s = *kpt, 1.0
                     else:
                         x, y, s = kpt
                     inside_flag = point_in_bbox((x, y), box)
-                    if (x == 0 and y == 0 ) or not inside_flag or s < self.kpt_thres:
+                    if (
+                        (x == 0 and y == 0)
+                        or not inside_flag
+                        or s < self.kpt_thres
+                    ):
                         continue
                     shape = Shape(flags={})
                     shape.add_point(QtCore.QPointF(int(x), int(y)))
                     shape.shape_type = "point"
                     shape.difficult = False
-                    shape.group_id = int(i)
+                    if self.tracker and track_id:
+                        shape.group_id = int(track_id)
+                    else:
+                        shape.group_id = int(i)
                     shape.closed = True
-                    shape.fill_color = "#000000"
-                    shape.line_color = "#000000"
-                    shape.line_width = 1
                     shape.label = keypoint_name[j]
                     shape.score = float(s)
                     shape.selected = False
                     shapes.append(shape)
-            if self.task == "track":
-                x1, y1, x2, y2 = list(map(float, box))
-                shape = Shape(flags={})
-                shape.add_point(QtCore.QPointF(x1, y1))
-                shape.add_point(QtCore.QPointF(x2, y1))
-                shape.add_point(QtCore.QPointF(x2, y2))
-                shape.add_point(QtCore.QPointF(x1, y2))
-                shape.shape_type = "rectangle"
-                shape.group_id = int(track_id)
-                shape.closed = True
-                shape.fill_color = "#000000"
-                shape.line_color = "#000000"
-                shape.line_width = 1
-                shape.label = str(self.classes[int(class_id)])
-                shape.score = float(score)
-                shape.selected = False
-                shapes.append(shape)
             if self.task == "obb":
                 poly = xywhr2xyxyxyxy(box)
                 x0, y0 = poly[0]
@@ -443,12 +474,11 @@ class YOLO(Model):
                 shape.shape_type = "rotation"
                 shape.closed = True
                 shape.direction = direction
-                shape.fill_color = "#000000"
-                shape.line_color = "#000000"
-                shape.line_width = 1
                 shape.label = str(self.classes[int(class_id)])
                 shape.score = float(score)
                 shape.selected = False
+                if self.tracker and track_id:
+                    shape.group_id = int(track_id)
                 shapes.append(shape)
         result = AutoLabelingResult(shapes, replace=self.replace)
 
@@ -556,9 +586,11 @@ class YOLO(Model):
 
         return masks
 
-    def postprocess_v10(self, prediction, task="det", conf_thres=0.25, classes=None):
+    def postprocess_v10(
+        self, prediction, task="det", conf_thres=0.25, classes=None
+    ):
         x = prediction[prediction[:, 4] >= conf_thres]
-        x[:, -1] =  x[:, -1].astype(int)
+        x[:, -1] = x[:, -1].astype(int)
         if classes is not None:
             x = x[np.isin(x[:, -1], classes)]
         return [x]

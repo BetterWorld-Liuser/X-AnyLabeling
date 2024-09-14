@@ -18,6 +18,61 @@ class ModelManager(QObject):
     """Model manager"""
 
     MAX_NUM_CUSTOM_MODELS = 5
+    CUSTOM_MODELS = [
+        "segment_anything",
+        "segment_anything_2",
+        "segment_anything_2_video",
+        "sam_med2d",
+        "sam_hq",
+        "yolov5",
+        "yolov6",
+        "yolov7",
+        "yolov8",
+        "yolov8_seg",
+        "yolox",
+        "yolov5_resnet",
+        "yolov6_face",
+        "rtdetr",
+        "yolo_nas",
+        "yolox_dwpose",
+        "clrnet",
+        "ppocr_v4",
+        "yolov5_sam",
+        "efficientvit_sam",
+        "yolov5_track",
+        "damo_yolo",
+        "yolov8_sahi",
+        "grounding_sam",
+        "grounding_sam2",
+        "grounding_dino",
+        "yolov5_obb",
+        "gold_yolo",
+        "yolov8_efficientvit_sam",
+        "ram",
+        "yolov5_seg",
+        "yolov5_ram",
+        "yolov8_pose",
+        "pulc_attribute",
+        "internimage_cls",
+        "edge_sam",
+        "yolov5_cls",
+        "yolov8_cls",
+        "yolov8_obb",
+        "yolov5_car_plate",
+        "rtmdet_pose",
+        "yolov9",
+        "yolow",
+        "yolov10",
+        "rmbg",
+        "depth_anything",
+        "depth_anything_v2",
+        "yolow_ram",
+        "rtdetrv2",
+        "yolov8_det_track",
+        "yolov8_seg_track",
+        "yolov8_obb_track",
+        "yolov8_pose_track",
+    ]
 
     model_configs_changed = pyqtSignal(list)
     new_model_status = pyqtSignal(str)
@@ -163,52 +218,7 @@ class ModelManager(QObject):
             "type" not in model_config
             or "display_name" not in model_config
             or "name" not in model_config
-            or model_config["type"]
-            not in [
-                "segment_anything",
-                "sam_med2d",
-                "sam_hq",
-                "yolov5",
-                "yolov6",
-                "yolov7",
-                "yolov8",
-                "yolov8_seg",
-                "yolox",
-                "yolov5_resnet",
-                "yolov6_face",
-                "rtdetr",
-                "yolo_nas",
-                "yolox_dwpose",
-                "clrnet",
-                "ppocr_v4",
-                "yolov5_sam",
-                "efficientvit_sam",
-                "yolov5_track",
-                "damo_yolo",
-                "yolov8_sahi",
-                "grounding_sam",
-                "grounding_dino",
-                "yolov5_obb",
-                "gold_yolo",
-                "yolov8_track",
-                "yolov8_efficientvit_sam",
-                "ram",
-                "yolov5_seg",
-                "yolov5_ram",
-                "yolov8_pose",
-                "pulc_attribute",
-                "internimage_cls",
-                "edge_sam",
-                "yolov5_cls",
-                "yolov8_cls",
-                "yolov8_obb",
-                "yolov5_car_plate",
-                "rtmdet_pose",
-                "depth_anything",
-                "yolov9",
-                "yolow",
-                "yolov10",
-            ]
+            or model_config["type"] not in self.CUSTOM_MODELS
         ):
             self.new_model_status.emit(
                 self.tr(
@@ -512,6 +522,28 @@ class ModelManager(QObject):
 
             try:
                 model_config["model"] = YOLOv5_RAM(
+                    model_config, on_message=self.new_model_status.emit
+                )
+                self.auto_segmentation_model_unselected.emit()
+            except Exception as e:  # noqa
+                self.new_model_status.emit(
+                    self.tr(
+                        "Error in loading model: {error_message}".format(
+                            error_message=str(e)
+                        )
+                    )
+                )
+                print(
+                    "Error in loading model: {error_message}".format(
+                        error_message=str(e)
+                    )
+                )
+                return
+        elif model_config["type"] == "yolow_ram":
+            from .yolow_ram import YOLOW_RAM
+
+            try:
+                model_config["model"] = YOLOW_RAM(
                     model_config, on_message=self.new_model_status.emit
                 )
                 self.auto_segmentation_model_unselected.emit()
@@ -843,6 +875,30 @@ class ModelManager(QObject):
                 return
             # Request next files for prediction
             self.request_next_files_requested.emit()
+        elif model_config["type"] == "grounding_sam2":
+            from .grounding_sam2 import GroundingSAM2
+
+            try:
+                model_config["model"] = GroundingSAM2(
+                    model_config, on_message=self.new_model_status.emit
+                )
+                self.auto_segmentation_model_selected.emit()
+            except Exception as e:  # noqa
+                print(
+                    "Error in loading model: {error_message}".format(
+                        error_message=str(e)
+                    )
+                )
+                self.new_model_status.emit(
+                    self.tr(
+                        "Error in loading model: {error_message}".format(
+                            error_message=str(e)
+                        )
+                    )
+                )
+                return
+            # Request next files for prediction
+            self.request_next_files_requested.emit()
         elif model_config["type"] == "yolov5_obb":
             from .yolov5_obb import YOLOv5OBB
 
@@ -870,6 +926,54 @@ class ModelManager(QObject):
 
             try:
                 model_config["model"] = SegmentAnything(
+                    model_config, on_message=self.new_model_status.emit
+                )
+                self.auto_segmentation_model_selected.emit()
+            except Exception as e:  # noqa
+                print(
+                    "Error in loading model: {error_message}".format(
+                        error_message=str(e)
+                    )
+                )
+                self.new_model_status.emit(
+                    self.tr(
+                        "Error in loading model: {error_message}".format(
+                            error_message=str(e)
+                        )
+                    )
+                )
+                return
+            # Request next files for prediction
+            self.request_next_files_requested.emit()
+        elif model_config["type"] == "segment_anything_2":
+            from .segment_anything_2 import SegmentAnything2
+
+            try:
+                model_config["model"] = SegmentAnything2(
+                    model_config, on_message=self.new_model_status.emit
+                )
+                self.auto_segmentation_model_selected.emit()
+            except Exception as e:  # noqa
+                print(
+                    "Error in loading model: {error_message}".format(
+                        error_message=str(e)
+                    )
+                )
+                self.new_model_status.emit(
+                    self.tr(
+                        "Error in loading model: {error_message}".format(
+                            error_message=str(e)
+                        )
+                    )
+                )
+                return
+            # Request next files for prediction
+            self.request_next_files_requested.emit()
+        elif model_config["type"] == "segment_anything_2_video":
+            try:
+                from .segment_anything_2_video import SegmentAnything2Video
+
+                model_config["model"] = SegmentAnything2Video(
                     model_config, on_message=self.new_model_status.emit
                 )
                 self.auto_segmentation_model_selected.emit()
@@ -1012,6 +1116,28 @@ class ModelManager(QObject):
 
             try:
                 model_config["model"] = RTDETR(
+                    model_config, on_message=self.new_model_status.emit
+                )
+                self.auto_segmentation_model_unselected.emit()
+            except Exception as e:  # noqa
+                self.new_model_status.emit(
+                    self.tr(
+                        "Error in loading model: {error_message}".format(
+                            error_message=str(e)
+                        )
+                    )
+                )
+                print(
+                    "Error in loading model: {error_message}".format(
+                        error_message=str(e)
+                    )
+                )
+                return
+        elif model_config["type"] == "rtdetrv2":
+            from .rtdetrv2 import RTDETRv2
+
+            try:
+                model_config["model"] = RTDETRv2(
                     model_config, on_message=self.new_model_status.emit
                 )
                 self.auto_segmentation_model_unselected.emit()
@@ -1205,11 +1331,11 @@ class ModelManager(QObject):
                     )
                 )
                 return
-        elif model_config["type"] == "yolov5_track":
-            from .yolov5_track import YOLOv5_Tracker
+        elif model_config["type"] == "yolov5_det_track":
+            from .yolov5_det_track import YOLOv5_Det_Tracker
 
             try:
-                model_config["model"] = YOLOv5_Tracker(
+                model_config["model"] = YOLOv5_Det_Tracker(
                     model_config, on_message=self.new_model_status.emit
                 )
                 self.auto_segmentation_model_unselected.emit()
@@ -1227,11 +1353,99 @@ class ModelManager(QObject):
                     )
                 )
                 return
-        elif model_config["type"] == "yolov8_track":
-            from .yolov8_track import YOLOv8_Tracker
+        elif model_config["type"] == "yolov8_det_track":
+            from .yolov8_det_track import YOLOv8_Det_Tracker
 
             try:
-                model_config["model"] = YOLOv8_Tracker(
+                model_config["model"] = YOLOv8_Det_Tracker(
+                    model_config, on_message=self.new_model_status.emit
+                )
+                self.auto_segmentation_model_unselected.emit()
+            except Exception as e:  # noqa
+                self.new_model_status.emit(
+                    self.tr(
+                        "Error in loading model: {error_message}".format(
+                            error_message=str(e)
+                        )
+                    )
+                )
+                print(
+                    "Error in loading model: {error_message}".format(
+                        error_message=str(e)
+                    )
+                )
+                return
+        elif model_config["type"] == "yolov8_seg_track":
+            from .yolov8_seg_track import YOLOv8_Seg_Tracker
+
+            try:
+                model_config["model"] = YOLOv8_Seg_Tracker(
+                    model_config, on_message=self.new_model_status.emit
+                )
+                self.auto_segmentation_model_unselected.emit()
+            except Exception as e:  # noqa
+                self.new_model_status.emit(
+                    self.tr(
+                        "Error in loading model: {error_message}".format(
+                            error_message=str(e)
+                        )
+                    )
+                )
+                print(
+                    "Error in loading model: {error_message}".format(
+                        error_message=str(e)
+                    )
+                )
+                return
+        elif model_config["type"] == "yolov8_obb_track":
+            from .yolov8_obb_track import YOLOv8_Obb_Tracker
+
+            try:
+                model_config["model"] = YOLOv8_Obb_Tracker(
+                    model_config, on_message=self.new_model_status.emit
+                )
+                self.auto_segmentation_model_unselected.emit()
+            except Exception as e:  # noqa
+                self.new_model_status.emit(
+                    self.tr(
+                        "Error in loading model: {error_message}".format(
+                            error_message=str(e)
+                        )
+                    )
+                )
+                print(
+                    "Error in loading model: {error_message}".format(
+                        error_message=str(e)
+                    )
+                )
+                return
+        elif model_config["type"] == "yolov8_pose_track":
+            from .yolov8_pose_track import YOLOv8_Pose_Tracker
+
+            try:
+                model_config["model"] = YOLOv8_Pose_Tracker(
+                    model_config, on_message=self.new_model_status.emit
+                )
+                self.auto_segmentation_model_unselected.emit()
+            except Exception as e:  # noqa
+                self.new_model_status.emit(
+                    self.tr(
+                        "Error in loading model: {error_message}".format(
+                            error_message=str(e)
+                        )
+                    )
+                )
+                print(
+                    "Error in loading model: {error_message}".format(
+                        error_message=str(e)
+                    )
+                )
+                return
+        elif model_config["type"] == "rmbg":
+            from .rmbg import RMBG
+
+            try:
+                model_config["model"] = RMBG(
                     model_config, on_message=self.new_model_status.emit
                 )
                 self.auto_segmentation_model_unselected.emit()
@@ -1271,11 +1485,44 @@ class ModelManager(QObject):
                     )
                 )
                 return
+        elif model_config["type"] == "depth_anything_v2":
+            from .depth_anything_v2 import DepthAnythingV2
+
+            try:
+                model_config["model"] = DepthAnythingV2(
+                    model_config, on_message=self.new_model_status.emit
+                )
+                self.auto_segmentation_model_unselected.emit()
+            except Exception as e:  # noqa
+                self.new_model_status.emit(
+                    self.tr(
+                        "Error in loading model: {error_message}".format(
+                            error_message=str(e)
+                        )
+                    )
+                )
+                print(
+                    "Error in loading model: {error_message}".format(
+                        error_message=str(e)
+                    )
+                )
+                return
         else:
             raise Exception(f"Unknown model type: {model_config['type']}")
 
         self.loaded_model_config = model_config
         return self.loaded_model_config
+
+    def set_cache_auto_label(self, text, gid):
+        """Set cache auto label"""
+        valid_models = [
+            "segment_anything_2_video",
+        ]
+        if (
+            self.loaded_model_config is not None
+            and self.loaded_model_config["type"] in valid_models
+        ):
+            self.loaded_model_config["model"].set_cache_auto_label(text, gid)
 
     def set_auto_labeling_marks(self, marks):
         """Set auto labeling marks
@@ -1283,12 +1530,15 @@ class ModelManager(QObject):
         """
         marks_model_list = [
             "segment_anything",
+            "segment_anything_2",
+            "segment_anything_2_video",
             "sam_med2d",
             "sam_hq",
             "yolov5_sam",
             "efficientvit_sam",
             "yolov8_efficientvit_sam",
             "grounding_sam",
+            "grounding_sam2",
             "edge_sam",
         ]
         if (
@@ -1298,25 +1548,47 @@ class ModelManager(QObject):
             return
         self.loaded_model_config["model"].set_auto_labeling_marks(marks)
 
-    def set_auto_labeling_conf(self, value):
-        """Set auto labeling confidences
+    def set_auto_labeling_reset_tracker(self):
+        """Resets the tracker to its initial state,
+        clearing all tracked objects and internal states.
         """
+        model_list = [
+            "yolov5_det_track",
+            "yolov8_det_track",
+            "yolov8_obb_track",
+            "yolov8_seg_track",
+            "yolov8_pose_track",
+            "segment_anything_2_video",
+        ]
+        if (
+            self.loaded_model_config is None
+            or self.loaded_model_config["type"] not in model_list
+        ):
+            return
+        self.loaded_model_config["model"].set_auto_labeling_reset_tracker()
+
+    def set_auto_labeling_conf(self, value):
+        """Set auto labeling confidences"""
         model_list = [
             "damo_yolo",
             "gold_yolo",
             "grounding_dino",
             "rtdetr",
+            "rtdetrv2",
             "yolo_nas",
             "yolov5_obb",
             "yolov5_seg",
-            "yolov5_track",
+            "yolov5_det_track",
             "yolov5",
             "yolov6",
             "yolov7",
             "yolov8_obb",
             "yolov8_pose",
             "yolov8_seg",
-            "yolov8_track",
+            "yolov8_det_track",
+            "yolov8_seg_track",
+            "yolov8_obb_track",
+            "yolov8_pose_track",
             "yolov8",
             "yolov9",
             "yolov10",
@@ -1331,24 +1603,26 @@ class ModelManager(QObject):
         self.loaded_model_config["model"].set_auto_labeling_conf(value)
 
     def set_auto_labeling_iou(self, value):
-        """Set auto labeling iou
-        """
+        """Set auto labeling iou"""
         model_list = [
             "damo_yolo",
             "gold_yolo",
             "yolo_nas",
             "yolov5_obb",
             "yolov5_seg",
-            "yolov5_track",
+            "yolov5_det_track",
             "yolov5",
             "yolov6",
             "yolov7",
             "yolov8_obb",
             "yolov8_pose",
             "yolov8_seg",
-            "yolov8_track",
+            "yolov8_det_track",
+            "yolov8_seg_track",
+            "yolov8_obb_track",
+            "yolov8_pose_track",
             "yolov8",
-            "yolov9"
+            "yolov9",
             "yolox",
         ]
         if (
@@ -1359,12 +1633,47 @@ class ModelManager(QObject):
         self.loaded_model_config["model"].set_auto_labeling_iou(value)
 
     def set_auto_labeling_preserve_existing_annotations_state(self, state):
-        invalid_model_list = []
+        model_list = [
+            "damo_yolo",
+            "gold_yolo",
+            "grounding_dino",
+            "rtdetr",
+            "rtdetrv2",
+            "yolo_nas",
+            "yolov5_obb",
+            "yolov5_seg",
+            "yolov5_det_track",
+            "yolov5",
+            "yolov6",
+            "yolov7",
+            "yolov8_obb",
+            "yolov8_pose",
+            "yolov8_seg",
+            "yolov8_det_track",
+            "yolov8_seg_track",
+            "yolov8_obb_track",
+            "yolov8_pose_track",
+            "yolov8",
+            "yolov9",
+            "yolov10",
+            "yolow",
+            "yolox",
+        ]
         if (
             self.loaded_model_config is not None
-            and self.loaded_model_config["type"] not in invalid_model_list
+            and self.loaded_model_config["type"] in model_list
         ):
-            self.loaded_model_config["model"].set_auto_labeling_preserve_existing_annotations_state(state)
+            self.loaded_model_config[
+                "model"
+            ].set_auto_labeling_preserve_existing_annotations_state(state)
+
+    def set_auto_labeling_prompt(self):
+        model_list = ["segment_anything_2_video"]
+        if (
+            self.loaded_model_config is not None
+            and self.loaded_model_config["type"] in model_list
+        ):
+            self.loaded_model_config["model"].set_auto_labeling_prompt()
 
     def unload_model(self):
         """Unload model"""
@@ -1372,7 +1681,9 @@ class ModelManager(QObject):
             self.loaded_model_config["model"].unload()
             self.loaded_model_config = None
 
-    def predict_shapes(self, image, filename=None, text_prompt=None):
+    def predict_shapes(
+        self, image, filename=None, text_prompt=None, run_tracker=False
+    ):
         """Predict shapes.
         NOTE: This function is blocking. The model can take a long time to
         predict. So it is recommended to use predict_shapes_threading instead.
@@ -1384,14 +1695,18 @@ class ModelManager(QObject):
             self.prediction_finished.emit()
             return
         try:
-            if text_prompt is None:
+            if text_prompt is not None:
                 auto_labeling_result = self.loaded_model_config[
                     "model"
-                ].predict_shapes(image, filename)
+                ].predict_shapes(image, filename, text_prompt=text_prompt)
+            elif run_tracker is True:
+                auto_labeling_result = self.loaded_model_config[
+                    "model"
+                ].predict_shapes(image, filename, run_tracker=run_tracker)
             else:
                 auto_labeling_result = self.loaded_model_config[
                     "model"
-                ].predict_shapes(image, filename, text_prompt)
+                ].predict_shapes(image, filename)
             self.new_auto_labeling_result.emit(auto_labeling_result)
             self.new_model_status.emit(
                 self.tr("Finished inferencing AI model. Check the result.")
@@ -1399,12 +1714,16 @@ class ModelManager(QObject):
         except Exception as e:  # noqa
             print(f"Error in predict_shapes: {e}")
             self.new_model_status.emit(
-                self.tr(f"Error in model prediction: {e}. Please check the model.")
+                self.tr(
+                    f"Error in model prediction: {e}. Please check the model."
+                )
             )
         self.prediction_finished.emit()
 
     @pyqtSlot()
-    def predict_shapes_threading(self, image, filename=None, text_prompt=None):
+    def predict_shapes_threading(
+        self, image, filename=None, text_prompt=None, run_tracker=False
+    ):
         """Predict shapes.
         This function starts a thread to run the prediction.
         """
@@ -1433,13 +1752,23 @@ class ModelManager(QObject):
                 return
 
             self.model_execution_thread = QThread()
-            if text_prompt is None:
+            if text_prompt is not None:
                 self.model_execution_worker = GenericWorker(
-                    self.predict_shapes, image, filename
+                    self.predict_shapes,
+                    image,
+                    filename,
+                    text_prompt=text_prompt,
+                )
+            elif run_tracker is True:
+                self.model_execution_worker = GenericWorker(
+                    self.predict_shapes,
+                    image,
+                    filename,
+                    run_tracker=run_tracker,
                 )
             else:
                 self.model_execution_worker = GenericWorker(
-                    self.predict_shapes, image, filename, text_prompt
+                    self.predict_shapes, image, filename
                 )
             self.model_execution_worker.finished.connect(
                 self.model_execution_thread.quit
@@ -1460,12 +1789,14 @@ class ModelManager(QObject):
         # Currently only segment_anything-like model supports this feature
         if self.loaded_model_config["type"] not in [
             "segment_anything",
+            "segment_anything_2",
             "sam_med2d",
             "sam_hq",
             "yolov5_sam",
             "efficientvit_sam",
             "yolov8_efficientvit_sam",
             "grounding_sam",
+            "grounding_sam2",
             "edge_sam",
         ]:
             return

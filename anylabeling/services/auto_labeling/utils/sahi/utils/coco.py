@@ -57,9 +57,11 @@ class CocoCategory:
         return cls(
             id=category["id"],
             name=category["name"],
-            supercategory=category["supercategory"]
-            if "supercategory" in category
-            else category["name"],
+            supercategory=(
+                category["supercategory"]
+                if "supercategory" in category
+                else category["name"]
+            ),
         )
 
     @property
