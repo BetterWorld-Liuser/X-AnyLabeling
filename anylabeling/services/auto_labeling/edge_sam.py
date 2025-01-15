@@ -1,8 +1,6 @@
-import logging
 import os
-import traceback
-
 import cv2
+import traceback
 import numpy as np
 
 from PyQt5 import QtCore
@@ -12,6 +10,7 @@ from PyQt5.QtCore import QCoreApplication
 from anylabeling.app_info import __preferred_device__
 from anylabeling.utils import GenericWorker
 from anylabeling.views.labeling.shape import Shape
+from anylabeling.views.labeling.logger import logger
 from anylabeling.views.labeling.utils.opencv import qt_img_to_rgb_cv_img
 
 from .lru_cache import LRUCache
@@ -186,9 +185,6 @@ class EdgeSAM(Model):
                     shape.add_point(QtCore.QPointF(point[0], point[1]))
                 shape.shape_type = "polygon"
                 shape.closed = True
-                shape.fill_color = "#000000"
-                shape.line_color = "#000000"
-                shape.line_width = 1
                 shape.label = "AUTOLABEL_OBJECT"
                 shape.selected = False
                 shapes.append(shape)
@@ -223,9 +219,6 @@ class EdgeSAM(Model):
                 "rectangle" if self.output_mode == "rectangle" else "rotation"
             )
             shape.closed = True
-            shape.fill_color = "#000000"
-            shape.line_color = "#000000"
-            shape.line_width = 1
             if self.clip_net is not None and self.classes:
                 img = image[y_min:y_max, x_min:x_max]
                 out = self.clip_net(img, self.classes)
@@ -264,8 +257,8 @@ class EdgeSAM(Model):
             masks = self.model.predict_masks(image_embedding, self.marks)
             shapes = self.post_process(masks, cv_image)
         except Exception as e:  # noqa
-            logging.warning("Could not inference model")
-            logging.warning(e)
+            logger.warning("Could not inference model")
+            logger.warning(e)
             traceback.print_exc()
             return AutoLabelingResult([], replace=False)
 

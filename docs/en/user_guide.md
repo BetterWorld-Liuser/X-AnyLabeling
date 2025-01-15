@@ -41,6 +41,7 @@
       * [7.3 Loading Predefined Labels](#73-loading-predefined-labels)
       * [7.4 Auto-Switch to Edit Mode](#74-auto-switch-to-edit-mode)
       * [7.5 Hover Auto-Highlight Mode](#75-hover-auto-highlight-mode)
+      * [7.6 Shape Property Customization](#76-shape-property-customization)
   * [8. Tasks](#8-tasks)
       * [8.1 Image Classification](#81-image-classification)
       * [8.2 Object Detection](#82-object-detection)
@@ -51,6 +52,7 @@
       * [8.7 Optical Character Recognition](#87-optical-character-recognition)
       * [8.8 Interactive Video Object Segmentation](#88-interactive-video-object-segmentation)
       * [8.9 Matting](#89-matting)
+      * [8.10 Vision-Language](#810-vision-language)
    * [9. Models](#9-models)
 
 
@@ -312,9 +314,9 @@ The export path defaults to the `Annotations` folder in the same directory as th
 
 ### 4.3 COCO Annotation
 
-The latest version of X-AnyLabeling supports one-click import/export for COCO label files (*.json) related to object detection and instance segmentation tasks.
+The latest version of X-AnyLabeling supports one-click import/export for COCO label files (*.json) related to object detection, instance segmentation, and keypoint detection tasks.
 
-Before importing/exporting COCO label files, prepare a label configuration file, referring to [classes.txt](../../assets/classes.txt), where each line represents a class, with numbers incrementing from 0.
+Before importing or exporting COCO label files, ensure you have a label configuration file prepared. For object detection and instance segmentation tasks, refer to [classes.txt](../../assets/classes.txt), and for keypoint detection tasks, refer to [yolov8_pose.yaml](../../assets/yolov8_pose.yaml).
 
 **Import Task**:
 1. Click the `Upload` button in the top menu bar.
@@ -324,8 +326,9 @@ Before importing/exporting COCO label files, prepare a label configuration file,
 
 **Export Task**:
 1. Click the `Export` button in the top menu bar.
-2. Upload the prepared configuration file.
-3. Click OK.
+2. Select the corresponding task.
+3. Upload the prepared configuration file.
+4. Click OK.
 
 The export path defaults to the `annotations` folder in the same directory as the current image directory.
 
@@ -491,15 +494,35 @@ Before importing/exporting ODVG label files, you need to prepare a label configu
 
 ### 5.1 Data Statistics
 
-`X-AnyLabeling` includes a data statistics feature, allowing users to easily access an overview of the current task's data. By selecting the **Tools** dropdown in the top menu bar and clicking on **Overview**, users can view the current data status. This feature supports the following:
+`X-AnyLabeling` includes a data statistics feature, allowing users to easily access an overview of the current task's data. By selecting **Tools** -> **Overview** in the top menu bar, users can view the current data status. It supports the following features:
 
-- One-click export of statistical reports
-- Statistics for a specified range of data
-- Label statistics for both image and object dimensions
+- Data Export Functionality
+  - Export statistical reports in CSV format
+  - Automatically generate a zip file containing label information, shape statistics and class list
+  - Export files include:
+    - label_infos.csv: Label count statistics
+    - shape_infos.csv: Annotation shape statistics  
+    - classes.txt: List of all classes
+
+- Flexible Statistics Range
+  - Support selecting specific range of images for statistics
+  - View statistics for single or multiple images
+  - Real-time statistics updates
+
+- Multi-dimensional Data Analysis
+  - By label category: Shows annotation count for each class
+  - By shape type: Including polygon, rectangle, rotated box, point, line, circle etc.
+  - Overall data overview: Shows dataset distribution
 
 <p align="center">
   <img src="../../assets/resources/overview.png" alt="Overview">
 </p>
+
+> Usage Instructions:
+> 1. Click "Tools" -> "Overview" in the top menu bar
+> 2. View data distribution in the statistics window
+> 3. Optionally select specific image range for statistics
+> 4. Click "Export" button to save statistics as zip file
 
 ### 5.2 Save Sub-Images
 
@@ -607,6 +630,7 @@ The current default keyboard shortcuts in X-AnyLabeling are as follows. Users ca
 | Ctrl + f              | Fit to window                                 |
 | Ctrl + Shift + f      | Fit to width                                  |
 | Ctrl + Shift + m      | Merge selected rectangle shapes               |
+| Ctrl + Shift + n      | Loop through shapes                           |
 | Ctrl + z              | Undo last action                              |
 | Delete                | Delete selected shape                         |
 | Esc                   | Deselect object                               |
@@ -676,6 +700,27 @@ In X-AnyLabeling v2.4.0 and above, the **hover auto-highlight mode** feature is 
 
 Note: In `multi-label classification tasks`, if the user manually uploads a property file, the `auto_highlight_shape` field will be set to `false` to prevent accidental switching of the property window status bar, thus improving user experience.
 
+### 7.6 Shape Property Customization
+
+a. Open the configuration file `.xanylabelingrc` in your user directory.
+
+b. Find the `shape` field in the configuration file, and modify the corresponding field values as needed.
+
+```YAML
+...
+shape:
+  # drawing
+  line_color: [0, 255, 0, 128]
+  fill_color: [220, 220, 220, 150]
+  vertex_fill_color: [0, 255, 0, 255]
+  # selecting / hovering
+  select_line_color: [255, 255, 255, 255]
+  select_fill_color: [0, 255, 0, 155]
+  hvertex_fill_color: [255, 255, 255, 255]
+  point_size: 10
+  line_width: 4
+...
+```
 
 ## 8. Tasks
 
@@ -717,6 +762,10 @@ Note: In `multi-label classification tasks`, if the user manually uploads a prop
 ### 8.9 Matting
 
 - Image Matting: [Link](../../examples/matting/image_matting/README.md)
+
+### 8.10 Vision-Language
+
+- Florence 2: [Link](../../examples/vision_language/florence2/README.md)
 
 ## 9. Models
 

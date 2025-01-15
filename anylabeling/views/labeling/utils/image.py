@@ -8,8 +8,10 @@ import numpy as np
 import PIL.ExifTags
 import PIL.Image
 import PIL.ImageOps
-import numpy as np
+
 from PyQt5 import QtGui
+
+from ...labeling.logger import logger
 
 
 def img_data_to_pil(img_data):
@@ -73,6 +75,35 @@ def img_data_to_png_data(img_data):
             return f.read()
 
 
+def get_pil_img_dim(img_path):
+    """
+    Get the dimensions of a PIL image.
+
+    Args:
+        img_path (str or bytes or PIL.Image.Image): The path to the image file or the image data.
+
+    Returns:
+        tuple: The dimensions of the image (width, height).
+    """
+    try:
+        if isinstance(img_path, str):
+            with PIL.Image.open(img_path) as img:
+                return img.size[0], img.size[1]
+        elif isinstance(img_path, bytes):
+            with PIL.Image.open(io.BytesIO(img_path)) as img:
+                return img.size[0], img.size[1]
+        elif isinstance(img_path, PIL.Image.Image):
+            return img_path.size[0], img_path.size[1]
+        else:
+            raise ValueError(f"Invalid image path type: {type(img_path)}")
+
+    except Exception as e:
+        logger.error(
+            f"Error reading image dimensions from {img_path}: {str(e)}"
+        )
+        raise
+
+
 def process_image_exif(filename):
     """Process image EXIF orientation and save if necessary."""
     with PIL.Image.open(filename) as img:
@@ -95,13 +126,17 @@ def process_image_exif(filename):
                     rotation = "90 degrees"
                 else:
                     return  # No rotation needed
-                backup_dir = osp.join(osp.dirname(osp.dirname(filename)), 
-                                      "x-anylabeling-exif-backup")
+                backup_dir = osp.join(
+                    osp.dirname(osp.dirname(filename)),
+                    "x-anylabeling-exif-backup",
+                )
                 os.makedirs(backup_dir, exist_ok=True)
                 backup_filename = osp.join(backup_dir, osp.basename(filename))
                 shutil.copy2(filename, backup_filename)
                 img.save(filename)
-                print(f"Rotated {filename} by {rotation}, saving backup to {backup_filename}")
+                logger.info(
+                    f"Rotated {filename} by {rotation}, saving backup to {backup_filename}"
+                )
                 break
 
 

@@ -1,26 +1,31 @@
-import logging
-import os
-import traceback
-
 import warnings
 
 warnings.filterwarnings("ignore")
 
+import os
 import cv2
+import traceback
 import numpy as np
+
 from PyQt5 import QtCore
 from PyQt5.QtCore import QCoreApplication
 
 from anylabeling.app_info import __preferred_device__
 from anylabeling.views.labeling.shape import Shape
+from anylabeling.views.labeling.logger import logger
 from anylabeling.views.labeling.utils.opencv import qt_img_to_rgb_cv_img
 
 from .model import Model
 from .types import AutoLabelingResult
 
-import torch
-from sam2.build_sam import build_sam2, build_sam2_camera_predictor
-from sam2.sam2_image_predictor import SAM2ImagePredictor
+try:
+    import torch
+    from sam2.build_sam import build_sam2, build_sam2_camera_predictor
+    from sam2.sam2_image_predictor import SAM2ImagePredictor
+
+    SAM2_VIDEO_AVAILABLE = True
+except ImportError:
+    SAM2_VIDEO_AVAILABLE = False
 
 
 class SegmentAnything2Video(Model):
@@ -65,16 +70,50 @@ class SegmentAnything2Video(Model):
             config_path (str): Path to the configuration file.
             on_message (callable): Callback for logging messages.
         """
+
+        if not SAM2_VIDEO_AVAILABLE:
+            message = "SegmentAnything2Video model will not be available. Please install related packages and try again."
+            raise ImportError(message)
+
         super().__init__(config_path, on_message)
 
-        # Enable automatic mixed precision for faster computations
-        torch.autocast(device_type="cuda", dtype=torch.bfloat16).__enter__()
+        device_type = self.config.get("device_type", "cuda")
+        if device_type == "cuda" and torch.cuda.is_available():
+            device = torch.device("cuda")
+        elif device_type == "mps" and torch.backends.mps.is_available():
+            device = torch.device("mps")
+            # if using Apple MPS, fall back to CPU for unsupported ops
+            os.environ["PYTORCH_ENABLE_MPS_FALLBACK"] = "1"
+        else:
+            device = torch.device("cpu")
+        logger.info(f"Using device: {device}")
 
-        if torch.cuda.get_device_properties(0).major >= 8:
-            # turn on tfloat32 for Ampere GPUs
-            # (https://pytorch.org/docs/stable/notes/cuda.html#tensorfloat-32-tf32-on-ampere-devices)
-            torch.backends.cuda.matmul.allow_tf32 = True
-            torch.backends.cudnn.allow_tf32 = True
+        if device.type == "cuda":
+            apply_postprocessing = True
+            # Enable automatic mixed precision for faster computations
+            torch.autocast(
+                device_type="cuda", dtype=torch.bfloat16
+            ).__enter__()
+            if torch.cuda.get_device_properties(0).major >= 8:
+                # turn on tfloat32 for Ampere GPUs
+                # (https://pytorch.org/docs/stable/notes/cuda.html#tensorfloat-32-tf32-on-ampere-devices)
+                torch.backends.cuda.matmul.allow_tf32 = True
+                torch.backends.cudnn.allow_tf32 = True
+        elif device.type == "mps":
+            apply_postprocessing = True
+            logger.warning(
+                "Support for MPS devices is preliminary. SAM 2 is trained with CUDA and might "
+                "give numerically different outputs and sometimes degraded performance on MPS. "
+                "See e.g. https://github.com/pytorch/pytorch/issues/84936 for a discussion."
+            )
+        elif device.type == "cpu":
+            apply_postprocessing = False
+            logger.warning(
+                "Support for CPU devices is preliminary. SAM 2 is trained with CUDA and might "
+                "give numerically different outputs and sometimes degraded performance on CPU. "
+                "The post-processing step (removing small holes and sprinkles in the output masks) "
+                "will be skipped, but this shouldn't affect the results in most cases."
+            )
 
         # Load the SAM2 predictor models
         self.model_abs_path = self.get_model_abs_path(
@@ -88,10 +127,15 @@ class SegmentAnything2Video(Model):
                 )
             )
         self.model_cfg = self.config["model_cfg"]
-        sam2_image_model = build_sam2(self.model_cfg, self.model_abs_path)
+        sam2_image_model = build_sam2(
+            self.model_cfg, self.model_abs_path, device=device
+        )
         self.image_predictor = SAM2ImagePredictor(sam2_image_model)
         self.video_predictor = build_sam2_camera_predictor(
-            self.model_cfg, self.model_abs_path
+            self.model_cfg,
+            self.model_abs_path,
+            device=device,
+            apply_postprocessing=apply_postprocessing,
         )
         self.is_first_init = True
 
@@ -120,8 +164,8 @@ class SegmentAnything2Video(Model):
         if self.prompts:
             try:
                 self.video_predictor.reset_state()
-                print(
-                    f"Successful: The tracker has been reset to its initial state."
+                logger.info(
+                    "Successful: The tracker has been reset to its initial state."
                 )
             except Exception as e:  # noqa
                 pass
@@ -233,34 +277,37 @@ class SegmentAnything2Video(Model):
                     point[0] = int(point[0])
                     point[1] = int(point[1])
                     shape.add_point(QtCore.QPointF(point[0], point[1]))
-                break
-            # Create Polygon shape
-            shape.shape_type = "polygon"
-            shape.group_id = self.group_ids[index] if index is not None else None
-            shape.closed = True
-            shape.label = "AUTOLABEL_OBJECT" if index is None else self.labels[index]
-            shape.selected = False
-            shapes.append(shape)
+                # Create Polygon shape
+                shape.shape_type = "polygon"
+                shape.group_id = (
+                    self.group_ids[index] if index is not None else None
+                )
+                shape.closed = True
+                shape.label = (
+                    "AUTOLABEL_OBJECT" if index is None else self.labels[index]
+                )
+                shape.selected = False
+                shapes.append(shape)
         elif self.output_mode in ["rectangle", "rotation"]:
             x_min = 100000000
             y_min = 100000000
             x_max = 0
             y_max = 0
+            # Find min/max coordinates across all contours
             for approx in approx_contours:
-                # Scale points
                 points = approx.reshape(-1, 2)
                 points[:, 0] = points[:, 0]
                 points[:, 1] = points[:, 1]
                 points = points.tolist()
                 if len(points) < 3:
                     continue
-                # Get min/max
                 for point in points:
                     x_min = min(x_min, point[0])
                     y_min = min(y_min, point[1])
                     x_max = max(x_max, point[0])
                     y_max = max(y_max, point[1])
-            # Create Rectangle shape
+
+            # Create single bounding box shape containing all contours
             shape = Shape(flags={})
             shape.add_point(QtCore.QPointF(x_min, y_min))
             shape.add_point(QtCore.QPointF(x_max, y_min))
@@ -270,8 +317,12 @@ class SegmentAnything2Video(Model):
                 "rectangle" if self.output_mode == "rectangle" else "rotation"
             )
             shape.closed = True
-            shape.group_id = self.group_ids[index] if index is not None else None
-            shape.label = "AUTOLABEL_OBJECT" if index is None else self.labels[index]
+            shape.group_id = (
+                self.group_ids[index] if index is not None else None
+            )
+            shape.label = (
+                "AUTOLABEL_OBJECT" if index is None else self.labels[index]
+            )
             shape.selected = False
             shapes.append(shape)
 
@@ -323,7 +374,9 @@ class SegmentAnything2Video(Model):
             filename.endswith(ext)
             for ext in [".jpg", ".jpeg", ".JPG", ".JPEG"]
         ):
-            print(f"Only JPEG format is supported, but got {filename}")
+            logger.warning(
+                f"Only JPEG format is supported, but got {filename}"
+            )
             return [], False
 
         if self.is_first_init:
@@ -397,8 +450,8 @@ class SegmentAnything2Video(Model):
                 shapes = self.image_process(cv_image)
                 result = AutoLabelingResult(shapes, replace=False)
         except Exception as e:  # noqa
-            logging.warning("Could not inference model")
-            logging.warning(e)
+            logger.warning("Could not inference model")
+            logger.warning(e)
             traceback.print_exc()
             return AutoLabelingResult([], replace=False)
 

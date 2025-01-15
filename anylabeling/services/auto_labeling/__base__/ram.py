@@ -1,13 +1,11 @@
-import logging
 import os
-
 import cv2
 import numpy as np
 from PyQt5 import QtCore
 from PyQt5.QtCore import QCoreApplication
 
 from anylabeling.app_info import __preferred_device__
-from anylabeling.views.labeling.shape import Shape
+from anylabeling.views.labeling.logger import logger
 from anylabeling.views.labeling.utils.opencv import qt_img_to_rgb_cv_img
 from ..model import Model
 from ..types import AutoLabelingResult
@@ -68,12 +66,19 @@ class RecognizeAnything(Model):
         Pre-processes the input image before feeding it to the network.
         """
         h, w = input_shape
-        image = cv2.resize(input_image, (w, h))
-        mean = np.array([0.485, 0.456, 0.406])
-        std = np.array([0.229, 0.224, 0.225])
+        # Convert to float32 before normalization
+        image = cv2.resize(input_image, (w, h)).astype(np.float32)
+        # Normalize the image
+        image /= 255.0
+        # standardize
+        mean = np.array([0.485, 0.456, 0.406], dtype=np.float32)
+        std = np.array([0.229, 0.224, 0.225], dtype=np.float32)
         image = (image - mean) / std
+        # transpose
         image = np.transpose(image, (2, 0, 1))
-        image = np.expand_dims(image, 0).astype(np.float32)
+        # expand
+        image = np.expand_dims(image, 0)
+
         return image
 
     def inference(self, blob):
@@ -108,8 +113,8 @@ class RecognizeAnything(Model):
         try:
             image = qt_img_to_rgb_cv_img(image, image_path)
         except Exception as e:  # noqa
-            logging.warning("Could not inference model")
-            logging.warning(e)
+            logger.warning("Could not inference model")
+            logger.warning(e)
             return []
 
         blob = self.preprocess(image, self.input_shape)
@@ -123,19 +128,15 @@ class RecognizeAnything(Model):
 
     @staticmethod
     def load_tag_list():
-        current_dir = os.path.dirname(__file__)
-        tag_list_file = os.path.join(
-            current_dir, "..", "configs", "ram_tag_list.txt"
-        )
-        tag_list_chinese_file = os.path.join(
-            current_dir, "..", "configs", "ram_tag_list_chinese.txt"
-        )
+        import importlib.resources as pkg_resources
+        from anylabeling.services.auto_labeling.configs import ram
 
-        with open(tag_list_file, "r", encoding="utf-8") as f:
-            tag_list = f.read().splitlines()
+        with pkg_resources.path(ram, "ram_tag_list.txt") as p:
+            tag_list = p.read_text(encoding="utf-8").splitlines()
         tag_list = np.array(tag_list)
-        with open(tag_list_chinese_file, "r", encoding="utf-8") as f:
-            tag_list_chinese = f.read().splitlines()
+
+        with pkg_resources.path(ram, "ram_tag_list_chinese.txt") as p:
+            tag_list_chinese = p.read_text(encoding="utf-8").splitlines()
         tag_list_chinese = np.array(tag_list_chinese)
 
         return tag_list, tag_list_chinese

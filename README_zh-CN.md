@@ -13,13 +13,18 @@
     <a href=""><img src="https://img.shields.io/github/v/release/CVHub520/X-AnyLabeling?color=ffa"></a>
     <a href=""><img src="https://img.shields.io/badge/python-3.8+-aff.svg"></a>
     <a href=""><img src="https://img.shields.io/badge/os-linux%2C%20win%2C%20mac-pink.svg"></a>
-    <a href="https://github.com/CVHub520/X-AnyLabeling/stargazers"><img src="https://img.shields.io/github/stars/CVHub520/X-AnyLabeling?color=ccf"></a>
+    <a href=""><img src="https://img.shields.io/github/downloads/CVHub520/X-AnyLabeling/total?label=downloads"></a>
 </p>
 
 ![](https://user-images.githubusercontent.com/18329471/234640541-a6a65fbc-d7a5-4ec3-9b65-55305b01a7aa.png)
 
 <img src="https://github.com/user-attachments/assets/0b1e3c69-a800-4497-9bad-4332c1ce1ebf" width="100%" />
-<div align="center"><strong>Segment Anything v2</strong></div>
+<div align="center"><strong>Segment Anything 2.1</strong></div>
+
+<br>
+
+[![Open Vision](https://github.com/user-attachments/assets/b2c1419b-540b-44fb-988e-a48572268df7)](https://www.bilibili.com/video/BV1jyqrYyE74)
+<div align="center"><strong>Interactive Visual-Text Prompting for Generic Vision Tasks</strong></div>
 
 </br>
 
@@ -32,10 +37,24 @@
 
 ## 🥳 新功能
 
+- 2025年1月:
+  - 🚀🚀🚀 发布[X-AnyLabeling v2.5.3](https://github.com/CVHub520/X-AnyLabeling/releases/tag/v2.5.3)版本。
+- 2024年12月:
+  - 🍊🍊🍊 支持[Hyper-YOLO](https://github.com/iMoonLab/Hyper-YOLO)模型。
+  - 🎉🎉🎉 发布[X-AnyLabeling v2.5.0](https://github.com/CVHub520/X-AnyLabeling/releases/tag/v2.5.0)版本。
+  - 🤡🤡🤡 支持基于文本-视觉提示的[Open Vsion](./examples/detection/hbb/README.md)模型。[[Youtube](https://www.youtube.com/watch?v=QtoVMiTwXqk) | [Bilibili](https://www.bilibili.com/video/BV1jyqrYyE74)]
+  - 👻👻👻 支持[Segment Anything 2.1](./docs/zh_cn/model_zoo.md)模型。
+  - 🤗🤗🤗 支持[Florence-2](./examples/vision_language/florence2/README.md)视觉-语言模型。
+- 2024年11月:
+  - ✨✨✨ 支持基于[UPN](./examples/detection/hbb/README.md)的目标候选框生成模型。
+  - 🌟🌟🌟 支持[YOLOv5-SAHI](./anylabeling/configs/auto_labeling/yolov5s_sahi.yaml)模型。
+- 2024年10月:
+  - 🎯🎯🎯 支持基于[DocLayout-YOLO](examples/optical_character_recognition/document_layout_analysis/README.md)的文档版面分析模型。
 - 2024年9月:
-  - 发布[X-AnyLabeling v2.4.2](https://github.com/CVHub520/X-AnyLabeling/releases/tag/v2.4.2)版本。
+  - 发布[X-AnyLabeling v2.4.4](https://github.com/CVHub520/X-AnyLabeling/releases/tag/v2.4.4)版本。
+  - 🐻‍❄️🐻‍❄️🐻‍❄️ 支持[YOLO11-Det/OBB/Pose/Seg/Track](https://github.com/ultralytics/ultralytics)模型。
   - 🧸🧸🧸 支持基于[RMBG v1.4](https://github.com/facebookresearch/segment-anything)的图像抠图功能。
-  - 🔥🔥🔥 支持基于[Segment-Anything-2](https://github.com/CVHub520/segment-anything-2)交互式视频目标追踪功能。【[教程](examples/interactive_video_object_segmentation/README.md) | [B站](https://www.bilibili.com/video/BV1kMpwedE8M/)】
+  - 🦄🦄🦄 支持基于[Segment-Anything-2](https://github.com/CVHub520/segment-anything-2)交互式视频目标追踪功能。【[教程](examples/interactive_video_object_segmentation/README.md) | [B站](https://www.bilibili.com/video/BV1kMpwedE8M/)】
 
 <br>
 
@@ -171,12 +190,14 @@
 
 </div>
 
+
 ## 文档
 
 1. [安装文档](./docs/zh_cn/get_started.md)
 2. [用户手册](./docs/zh_cn/user_guide.md)
 3. [自定义模型](./docs/zh_cn/custom_model.md)
 4. [常见问题答疑](./docs/zh_cn/faq.md)
+
 
 ## 示例
 
@@ -207,12 +228,26 @@
 - [iVOS](./examples/interactive_video_object_segmentation/README.md)
 - [Matting](./examples/matting/)
   - [Image Matting](./examples/matting/image_matting/README.md)
+- [Vision-Language](./examples/vision_language/)
+  - [Florence 2](./examples/vision_language/florence2/README.md)
+
 
 ## 联系
 
 如果你觉得这个项目有帮助，请点亮右上角的⭐星标⭐。如有任何问题或疑问，欢迎[创建 issue](https://github.com/CVHub520/X-AnyLabeling/issues) 或发送邮件至 cv_hub@163.com。
 
 💡洽谈合作事项或想法共创，敬请添加微信: `ww10874` （非诚勿扰）
+
+
+## 赞助
+
+| **微信支付** | **支付宝** |
+| :---: | :---: |
+| <img src="https://github.com/user-attachments/assets/0178cf76-3627-426e-8432-ec031c9278ae" width="200px" /> | <img src="https://github.com/user-attachments/assets/87544ff8-3560-4696-b035-1fd26ecd162b" width="200px" /> |
+
+
+感谢您的支持！
+
 
 ## 许可
 
